@@ -4,35 +4,43 @@ function RoutingMap({ routeData }) {
     const mapContainerRef = useRef(null);
     const mapRef = useRef(null);
 
+    // Create the map only once
     useEffect(() => {
-        // Initialize the Longdo Map if it hasn't been already.
         if (window.longdo && !mapRef.current) {
-            mapRef.current = new window.longdo.Map({ placeholder: mapContainerRef.current });
+            mapRef.current = new window.longdo.Map({
+                placeholder: mapContainerRef.current,
+            });
+
             mapRef.current.Route.enableContextMenu();
             mapRef.current.Route.auto(true);
         }
     }, []);
 
+    // Update route when routeData changes
     useEffect(() => {
         if (mapRef.current && routeData) {
-            // Clear previous routing markers if a clear method is available.
-            if (mapRef.current.Route.clear) {
-                mapRef.current.Route.clear();
-            }
-            // Add start marker.
+            const map = mapRef.current;
+            // console.log('Route Data:', routeData);
+            map.Overlays.clear();
+            if (map.Route.clear) map.Route.clear();
+
             const startMarker = new window.longdo.Marker(routeData.startCoord, {
                 title: 'Start',
-                detail: routeData.startName || 'Start'
+                detail: routeData.startName || 'Start',
             });
-            mapRef.current.Route.add(startMarker);
-            // Add destination marker.
+            map.Route.add(startMarker);
+
             const destMarker = new window.longdo.Marker(routeData.destinationCoord, {
                 title: 'Destination',
-                detail: routeData.destinationName || 'Destination'
+                detail: routeData.destinationName || 'Destination',
             });
-            mapRef.current.Route.add(destMarker);
-            // Trigger the route search to display the calculated path.
-            mapRef.current.Route.search();
+            map.Route.add(destMarker);
+
+            map.Route.search();
+
+            setTimeout(() => {
+                // map.Route.bound( routeData.startCoord.log , routeData.startCoord.lat, routeData.destinationCoord.log, routeData.destinationCoord.lat); 
+            }, 500); 
         }
     }, [routeData]);
 
