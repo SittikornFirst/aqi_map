@@ -139,7 +139,7 @@ export default function InputPanel({ onRouteSubmit, language }) {
     };
 
     return (
-        <div className="pb-16">
+        <div>
         <form onSubmit={handleSubmit} className="p-4 bg-white shadow-md flex flex-col md:flex-row gap-2 items-start md:items-end relative">
 
             <div className="relative w-full md:w-1/2">

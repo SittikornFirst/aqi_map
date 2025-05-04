@@ -17,8 +17,6 @@ function MapContainer({ language }) {
         else return "#99004C"; // Very Unhealthy or above
     };
 
-    // ฟังก์ชันสร้าง marker แบบ IQAir (กลมๆ) โดยใช้ HTML ในการกำหนด icon
-    // eslint-disable-next-line no-unused-vars
     const createMarker = useCallback((map, lat, lng, aqi, station, nameTH, nameEN, areaTH, areaEN, pm25, pm10, o3, no2, so2, co,date,time) => {
         if (!map || !window.longdo) return;
 

@@ -8,16 +8,20 @@ import SettingsPage from './pages/SettingsPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import LoadingModal from './components/LoadingModal'; // เพิ่มเข้ามา
 
 function App() {
   const [routeData, setRouteData] = useState(null);
   const [language, setLanguage] = useState('th');
-  const isLoading = false;
+  const [isLoading, setIsLoading] = useState(false); // ✅ เปลี่ยนจาก let เป็น useState
+
   const toggleLanguage = () => {
+    setIsLoading(true); 
+
     setLanguage((prev) => (prev === 'en' ? 'th' : 'en'));
-    isLoading = true;
     setTimeout(() => {
-      isLoading = false;
+      
+      setIsLoading(false); 
     }, 500);
   };
   const handleRouteSubmit = ({ startName, startCoord, destinationName, destinationCoord }) => {
@@ -26,18 +30,17 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen w-full">
+      <LoadingModal  show={isLoading} />
       <header className="flex h-16 border-b border-gray-900/10 bg-white shadow-sm z-40">
-        <div className="mx-auto flex w-full max-w-7xl px-4 sm:px-6 lg:px-8 justify-between items-center relative">
+        <div className="mx-auto flex w-full max-w-7xl px-4 sm:px-6 lg:px-8 justify-center items-center relative">
           <Navbar language={language} />
         </div>
       </header>
 
       <Routes>
         <Route
-          path="/home"
-          link="/"
-          element={
-            <>
+          path="/"    
+          element={<>
               <InputPanel onRouteSubmit={handleRouteSubmit} language={language} />
               <div className="flex-1 overflow-hidden">
                 {routeData ? <RoutingMap routeData={routeData} language={language} /> : <MapContainer language={language} />}
@@ -54,7 +57,8 @@ function App() {
               toggleLanguage={toggleLanguage}
             />
           }
-        />        <Route path="/login" element={<Login />} />
+        />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="*" element={<div className="text-center mt-10">404 - Page Not Found</div>} />
