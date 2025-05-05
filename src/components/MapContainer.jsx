@@ -21,31 +21,25 @@ const AQI_OPTIONS = [
 ];
 
 function MapContainer({ language }) {
-  const mapRef = useRef(null);
-  const [aqiData, setAqiData] = useState(null);
-  const [selectedAQIType, setSelectedAQIType] = useState(AQI_OPTIONS[0]);
-  const [query, setQuery] = useState("");
+    const mapRef = useRef(null);
+    const [aqiData, setAqiData] = useState(null);
 
-  const filteredOptions =
-    query === ""
-      ? AQI_OPTIONS
-      : AQI_OPTIONS.filter((option) =>
-          option.name.toLowerCase().includes(query.toLowerCase())
-        );
+    // ฟังก์ชันสำหรับแปลงค่า AQI เป็นสี (IQAir style)
+    const getColorByAQILevel = (aqi) => {
+        const numericAQI = Number(aqi);
+        if (isNaN(numericAQI)) return "#CCCCCC"; // ถ้าไม่ใช่ตัวเลขให้ใช้สีเทา
+        if (numericAQI > 0 && numericAQI <= 25) return "#00E400"; // Good
+        else if (numericAQI > 25 && numericAQI <= 50) return "#00E400"; // Good
+        else if (numericAQI > 50 && numericAQI <= 100) return "#FFFF00"; // Moderate
+        else if (numericAQI > 100 && numericAQI <= 150) return "#FF7E00"; // Unhealthy for Sensitive Groups
+        else if (numericAQI > 150 && numericAQI <= 200) return "#FF0000"; // Unhealthy
+        else return "#99004C"; // Very Unhealthy or above
+    };
 
-  const getColorByAQILevel = (aqi) => {
-    const numericAQI = Number(aqi);
-    if (isNaN(numericAQI)) return "#CCCCCC";
-    if (numericAQI <= 50) return "#00E400";
-    if (numericAQI <= 100) return "#FFFF00";
-    if (numericAQI <= 150) return "#FF7E00";
-    if (numericAQI <= 200) return "#FF0000";
-    return "#99004C";
-  };
-
-  const createMarker = useCallback(
-    (map, lat, lng, aqiValue, station) => {
-      if (!map || !window.longdo) return;
+    // ฟังก์ชันสร้าง marker แบบ IQAir (กลมๆ) โดยใช้ HTML ในการกำหนด icon
+    // eslint-disable-next-line no-unused-vars
+    const createMarker = useCallback((map, lat, lng, aqi, station, nameTH, nameEN, areaTH, areaEN, pm25, pm10, o3, no2, so2, co,date,time) => {
+        if (!map || !window.longdo) return;
 
       const markerElement = document.createElement("div");
       markerElement.innerHTML = `

@@ -139,7 +139,11 @@ export default function InputPanel({ onRouteSubmit, language }) {
     };
 
     return (
+<<<<<<< HEAD
         <div className="">
+=======
+        <div>
+>>>>>>> b2f80f75c311235bae44552066b221d319f1b05e
         <form onSubmit={handleSubmit} className="p-4 bg-white shadow-md flex flex-col md:flex-row gap-2 items-start md:items-end relative">
 
             <div className="relative w-full md:w-1/2">
