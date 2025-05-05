@@ -1,162 +1,165 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { fetchAqiData } from '../services/aqiService';
+import { useEffect, useRef, useState, useCallback } from "react";
+import { fetchAqiData } from "../services/aqiService";
+import {
+  Combobox,
+  ComboboxButton,
+  ComboboxInput,
+  ComboboxOption,
+  ComboboxOptions,
+  Label,
+} from "@headlessui/react";
+import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
+
+const AQI_OPTIONS = [
+  { id: "PM25", name: "AQI" },
+  { id: "PM25", name: "PM2.5" },
+  { id: "PM10", name: "PM10" },
+  { id: "O3", name: "O3" },
+  { id: "NO2", name: "NO2" },
+  { id: "SO2", name: "SO2" },
+  { id: "CO", name: "CO" },
+];
 
 function MapContainer({ language }) {
-    const mapRef = useRef(null);
-    const [aqiData, setAqiData] = useState(null);
+  const mapRef = useRef(null);
+  const [aqiData, setAqiData] = useState(null);
+  const [selectedAQIType, setSelectedAQIType] = useState(AQI_OPTIONS[0]);
+  const [query, setQuery] = useState("");
 
-    // ฟังก์ชันสำหรับแปลงค่า AQI เป็นสี (IQAir style)
-    const getColorByAQILevel = (aqi) => {
-        const numericAQI = Number(aqi);
-        if (isNaN(numericAQI)) return "#CCCCCC"; // ถ้าไม่ใช่ตัวเลขให้ใช้สีเทา
-        if (numericAQI > 0 && numericAQI <= 25) return "#00E400"; // Good
-        else if (numericAQI > 25 && numericAQI <= 50) return "#00E400"; // Good
-        else if (numericAQI > 50 && numericAQI <= 100) return "#FFFF00"; // Moderate
-        else if (numericAQI > 100 && numericAQI <= 150) return "#FF7E00"; // Unhealthy for Sensitive Groups
-        else if (numericAQI > 150 && numericAQI <= 200) return "#FF0000"; // Unhealthy
-        else return "#99004C"; // Very Unhealthy or above
-    };
+  const filteredOptions =
+    query === ""
+      ? AQI_OPTIONS
+      : AQI_OPTIONS.filter((option) =>
+          option.name.toLowerCase().includes(query.toLowerCase())
+        );
 
-    // ฟังก์ชันสร้าง marker แบบ IQAir (กลมๆ) โดยใช้ HTML ในการกำหนด icon
-    // eslint-disable-next-line no-unused-vars
-    const createMarker = useCallback((map, lat, lng, aqi, station, nameTH, nameEN, areaTH, areaEN, pm25, pm10, o3, no2, so2, co,date,time) => {
-        if (!map || !window.longdo) return;
+  const getColorByAQILevel = (aqi) => {
+    const numericAQI = Number(aqi);
+    if (isNaN(numericAQI)) return "#CCCCCC";
+    if (numericAQI <= 50) return "#00E400";
+    if (numericAQI <= 100) return "#FFFF00";
+    if (numericAQI <= 150) return "#FF7E00";
+    if (numericAQI <= 200) return "#FF0000";
+    return "#99004C";
+  };
 
-        // สร้าง element สำหรับ marker icon
-        const markerElement = document.createElement('div');
-        markerElement.className = 'relative';
-        markerElement.innerHTML = `
-      <div style="
-        width: 40px; 
-        height: 40px; 
-        border-radius: 50%; 
-        background-color: ${getColorByAQILevel(aqi)}; 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        font-weight: bold; 
-        font-family: Arial, sans-serif;
-        font-size: 14px; 
-        color: black;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-      ">
-        ${aqi}
+  const createMarker = useCallback(
+    (map, lat, lng, aqiValue, station) => {
+      if (!map || !window.longdo) return;
+
+      const markerElement = document.createElement("div");
+      markerElement.innerHTML = `
+                  <div style="width:40px;height:40px;border-radius:50%;background-color:${getColorByAQILevel(
+                    aqiValue
+                  )};display:flex;justify-content:center;align-items:center;font-weight:bold;font-size:14px;">
+                    ${aqiValue}
+                  </div>
+                `;
+
+      const marker = new window.longdo.Marker(
+        { lon: lng, lat },
+        {
+          title: language === "th" ? station.nameTH : station.nameEN,
+          icon: { html: markerElement.innerHTML },
+          popup: {
+            title: language === "th" ? station.nameTH : station.nameEN,
+            detail: `
+                      <br>${language === "th" ? "สถานี" : "Station"}: ${
+              language === "th" ? station.areaTH : station.areaEN
+            }
+                      <br>${selectedAQIType.name}: ${aqiValue} µg/m³
+                      <br>${
+                        language === "th" ? "อัพเดทล่าสุด" : "Last Update"
+                      }: ${station.AQILast?.date || "N/A"} ${
+              station.AQILast?.time || "N/A"
+            }
+                    `,
+          },
+        }
+      );
+
+      if (!isNaN(aqiValue) && aqiValue >= 0) {
+        map.Overlays.add(marker);
+      }
+    },
+    [language, selectedAQIType]
+  );
+
+  useEffect(() => {
+    if (window.longdo) {
+      mapRef.current = new window.longdo.Map({
+        placeholder: document.getElementById("longdoMap"),
+        zoom: 10,
+      });
+      
+    }
+
+    fetchAqiData().then(setAqiData).catch(console.error);
+  }, []);
+  
+  useEffect(() => {
+    if (mapRef.current && aqiData) {
+        mapRef.current.Overlays.clear();
+        mapRef.current.Ui.DPad.visible(false);
+        mapRef.current.Ui.Zoombar.visible(false);
+        mapRef.current.Ui.Geolocation.visible(false);
+        mapRef.current.Ui.Toolbar.visible(false);
+        mapRef.current.Ui.LayerSelector.visible(false);
+        mapRef.current.Ui.Fullscreen.visible(false);
+        mapRef.current.Ui.Crosshair.visible(false);
+        mapRef.current.Ui.Fullscreen.visible(false);
+ 
+
+      aqiData.stations.forEach((station) => {
+        const lat = parseFloat(station.lat);
+        const lng = parseFloat(station.long);
+        const aqiValue = station.AQILast?.[selectedAQIType.id]?.value;
+
+        if (!isNaN(Number(aqiValue))) {
+          createMarker(mapRef.current, lat, lng, aqiValue, station);
+        }
+      });
+    }
+  }, [aqiData, selectedAQIType, createMarker]);
+
+  return (
+    <div className="relative flex flex-col w-full h-screen">
+      <div className="flex-none z-20 bg-white p-4 rounded shadow m-4 max-w-xs">
+        <Combobox value={selectedAQIType} onChange={setSelectedAQIType}>
+          <Label className="block text-sm font-medium text-gray-900">
+            Select AQI Type
+          </Label>
+          <div className="relative mt-1">
+            <ComboboxInput
+              className="block w-full rounded-md py-2 pr-12 pl-3 outline outline-gray-300 focus:outline-indigo-600 " 
+              onChange={(e) => setQuery(e.target.value)}
+              displayValue={(option) => option.name}
+            />
+            <ComboboxButton className="absolute inset-y-0 right-0 flex items-center px-2">
+              <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+            </ComboboxButton>
+            {filteredOptions.length > 0 && (
+              <ComboboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto bg-white shadow-lg ring-1 ring-black/5">
+                {filteredOptions.map((option) => (
+                  <ComboboxOption
+                    key={option.id}
+                    value={option}
+                    className="cursor-pointer px-3 py-2"
+                  >
+                    {option.name}
+                  </ComboboxOption>
+                ))}
+              </ComboboxOptions>
+            )}
+          </div>
+        </Combobox>
       </div>
-    `;
-
-        try {
-            const marker = new window.longdo.Marker({ lon: lng, lat: lat }, {
-                title: language === 'th' ? nameTH : nameEN,
-                draggable: false,
-                clickable: false, // หากต้องการให้ popup ไม่แสดงเมื่อคลิก สามารถตั้ง clickable: false
-                weight: window.longdo.OverlayWeight.Top,
-                icon: {
-                    html: markerElement.innerHTML,
-                },
-                popup: {
-                    title: language === 'th' ? nameTH : nameEN,
-                    detail:
-                        //     `
-                        //                         <br>${language === 'th' ? 'สถานี' : 'Station'}: ${language === 'th' ? areaTH : areaEN}
-
-                        //     <br>${language === 'th' ? 'ดัชนีคุณภาพอากาศ' : 'AQI'}: ${aqi}
-                        //     <br>${language === 'th' ? 'PM2.5' : 'PM2.5'}: ${pm25} µg/m³
-                        //     <br>${language === 'th' ? 'PM10' : 'PM10'}: ${pm10} µg/m³
-                        //     <br>${language === 'th' ? 'O3' : 'O3'}: ${o3} µg/m³
-                        //     <br>${language === 'th' ? 'NO2' : 'NO2'}: ${no2} µg/m³
-                        //     <br>${language === 'th' ? 'SO2' : 'SO2'}: ${so2} µg/m³
-                        //     <br>${language === 'th' ? 'CO' : 'CO'}: ${co} µg/m³
-                        //   `
-                        `
-                                <br>${language === 'th' ? 'สถานี' : 'Station'}: ${language === 'th' ? areaTH : areaEN}
-                                <br>${language === 'th' ? 'ดัชนีคุณภาพอากาศ' : 'AQI'}: ${aqi}
-                                <br>${language === 'th' ? 'PM2.5' : 'PM2.5'}: ${pm25} µg/m³
-                                <br>${language === 'th' ? 'อัพเดทล่าสุด' : 'Last Update'}: ${date} ${time}
-                        `
-                },
-            });
-            if (station.AQILast?.PM25?.aqi < 0) {
-                return
-            };
-            map.Overlays.add(marker);
-        } catch (error) {
-            console.error("Error creating IQAir style marker:", error);
-        }
-    }, [language]);
-
-    // Initial Map และ Fetch AQI data
-    useEffect(() => {
-        if (window.longdo) {
-            const map = new window.longdo.Map({
-                placeholder: document.getElementById('longdoMap'),
-                zoom: 10,
-                lastView: false,
-            });
-            mapRef.current = map;
-            window.map = map;
-        }
-
-        fetchAqiData()
-            .then((data) => {
-                setAqiData(data);
-            })
-            .catch((err) => {
-                console.error('Error fetching AQI data: ', err);
-            });
-    }, []);
-
-    // เมื่อได้รับข้อมูล AQI ให้สร้าง marker สำหรับแต่ละสถานี
-    useEffect(() => {
-        if (mapRef.current && aqiData && aqiData.stations) {
-            // ลบ marker เก่าก่อนเพื่อป้องกันการซ้ำซ้อน
-            mapRef.current.Overlays.clear();
-            mapRef.current.Ui.DPad.visible(false);
-            mapRef.current.Ui.Zoombar.visible(false);
-            mapRef.current.Ui.Geolocation.visible(false);
-            mapRef.current.Ui.Toolbar.visible(false);
-            mapRef.current.Ui.LayerSelector.visible(false);
-            mapRef.current.Ui.Fullscreen.visible(false);
-            mapRef.current.Ui.Crosshair.visible(false);
-            mapRef.current.Ui.Fullscreen.visible(false);
-
-            aqiData.stations.forEach((station) => {
-                const lat = parseFloat(station.lat);
-                const lng = parseFloat(station.long);
-                if (isNaN(lat) || isNaN(lng)) {
-                    console.warn(`Invalid coordinates for station ${station.nameEN}`);
-                    return;
-                }
-                // console.log(station); b    bv
-                const nameTH = station.nameTH || 'N/A';
-                const nameEN = station.nameEN || 'N/A';
-                const areaTH = station.areaTH || 'N/A';
-                const areaEN = station.areaEN || 'N/A';
-                const date = station.AQILast?.date || 'N/A';
-                const time = station.AQILast?.time || 'N/A';
-
-                // ดึงค่า AQI จาก station (ตรวจสอบโครงสร้างข้อมูลตาม API)
-                const aqi = station.AQILast?.PM25?.aqi || 'N/A';
-                const pm25 = station.AQILast?.PM25?.value || 'N/A';
-                const pm10 = station.AQILast?.PM10?.aqi || 'N/A';
-                const o3 = station.AQILast?.O3?.aqi || 'N/A';
-                const no2 = station.AQILast?.NO2?.aqi || 'N/A';
-                const so2 = station.AQILast?.SO2?.aqi || 'N/A';
-                const co = station.AQILast?.CO?.aqi || 'N/A';
-
-                // สร้าง marker เฉพาะเมื่อข้อมูล AQI เป็นตัวเลข
-                if (!isNaN(Number(aqi))) {
-                    createMarker(mapRef.current, lat, lng, aqi, station, nameTH, nameEN, areaTH, areaEN, pm25, pm10, o3, no2, so2, co,date,time);
-                }
-            });
-
-        }
-    }, [aqiData, createMarker]);
-
-    return (
-        <div className="w-full h-screen">
-            <div id="longdoMap" className="w-full h-full"></div>
-        </div>
-    );
+      <div id="longdoMap" className="flex-grow"></div>
+      {/* Reserve space at bottom for mobile Navbar */}
+      <div className="block md:hidden h-16"></div>
+    </div>
+  
+  );
 }
 
 export default MapContainer;

@@ -16,7 +16,7 @@ export default function InputPanel({ onRouteSubmit, language }) {
         destination: language === 'en' ? 'Destination' : 'ปลายทาง',
         route: language === 'en' ? 'Find Route' : 'ค้นหาเส้นทาง',
         currentLocation: language === 'en' ? 'Current location' : 'ตำแหน่งปัจจุบัน',
-        swap: language === 'en' ? 'Swap' : 'สลับ',
+        // swap: language === 'en' ? 'Swap' : 'สลับ',
     };
 
     useEffect(() => {
@@ -139,7 +139,7 @@ export default function InputPanel({ onRouteSubmit, language }) {
     };
 
     return (
-        <div className="pb-16">
+        <div className="">
         <form onSubmit={handleSubmit} className="p-4 bg-white shadow-md flex flex-col md:flex-row gap-2 items-start md:items-end relative">
 
             <div className="relative w-full md:w-1/2">
@@ -150,8 +150,8 @@ export default function InputPanel({ onRouteSubmit, language }) {
                     onChange={(e) => handleInput(e.target.value, 'start')}
                     onFocus={() => setActiveSuggestionField('start')}
                     onBlur={handleBlur}
-                        className="w-full pl-9 p-2 h-12 border rounded"
-                />
+                    className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                    />
                 {activeSuggestionField === 'start' && suggestions.length > 0 && (
                     <div
                         ref={suggestBoxRef}
@@ -190,7 +190,7 @@ export default function InputPanel({ onRouteSubmit, language }) {
                     onChange={(e) => handleInput(e.target.value, 'destination')}
                     onFocus={() => setActiveSuggestionField('destination')}
                     onBlur={handleBlur}
-                        className="w-full pl-9 p-2 h-12 border rounded"
+                        className="block w-full rounded-md bg-white px-3.5 py-2 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600"
                 />
                 {activeSuggestionField === 'destination' && suggestions.length > 0 && (
                     <div
