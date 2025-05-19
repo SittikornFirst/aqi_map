@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { geocodeByText } from '../services/aqiService'; // แก้ path ตามโปรเจกต์ของคุณ
+
+import { useState, useRef, useEffect } from 'react';
 
 export default function InputPanel({ onRouteSubmit, language }) {
     const [sText, setSText] = useState('');
@@ -7,57 +7,40 @@ export default function InputPanel({ onRouteSubmit, language }) {
     const [dText, setDText] = useState('');
     const [dCoord, setDCoord] = useState(null);
     const [suggestions, setSuggestions] = useState([]);
-    const [activeSuggestionField, setActiveSuggestionField] = useState(null);
+    const [activeField, setActiveField] = useState(null);
+    const inputRef = useRef(null);
+    const destinationRef = useRef(null);
     const suggestBoxRef = useRef(null);
-    const destinationInputRef = useRef(null);
-
-    const placeholders = {
-        start: language === 'en' ? 'Start location' : 'ต้นทาง',
-        destination: language === 'en' ? 'Destination' : 'ปลายทาง',
-        route: language === 'en' ? 'Find Route' : 'ค้นหาเส้นทาง',
-        currentLocation: language === 'en' ? 'Current location' : 'ตำแหน่งปัจจุบัน',
-        // swap: language === 'en' ? 'Swap' : 'สลับ',
-    };
 
     useEffect(() => {
-        if (window.map?.Search?.placeholder && suggestBoxRef.current) {
-            window.map.Search.placeholder(suggestBoxRef.current);
-        }
-
-        if (window.map?.Search?.language) {
+        console.log('[INIT] useEffect mount, setting language:', language);
+        if (window.map && window.map.Search && window.map.Search.language) {
             window.map.Search.language(language);
         }
 
         const handleSuggest = (result) => {
-            if (result?.data) {
-                const items = [
-                    ...(navigator.geolocation
-                        ? [{ id: '__loc__', label: placeholders.currentLocation }]
-                        : []),
-                    ...result.data.map((item, i) => ({
-                        id: i,
-                        label: item.d,
-                        query: item.w || item.keyword || item.d,
-                    })),
-                ];
-                setSuggestions(items);
-            } else {
-                setSuggestions([]);
-            }
+            console.log('[SUGGEST EVENT] Fired with result:', result);
+            if (!result || !result.data) return;
+            const items = result.data.map((item, i) => ({
+                id: i,
+                label: item.d,
+                keyword: item.w || item.d
+            }));
+            setSuggestions(items);
         };
 
-        if (window.map?.Event?.bind) {
+        if (window.map && window.map.Event && window.map.Event.bind) {
             window.map.Event.bind('suggest', handleSuggest);
         }
-
         return () => {
-            if (window.map?.Event?.unbind) {
+            if (window.map && window.map.Event && window.map.Event.unbind) {
                 window.map.Event.unbind('suggest', handleSuggest);
             }
         };
-    }, [language, placeholders.currentLocation]);
+    }, [language]);
 
     const handleInput = (value, field) => {
+        console.log('[INPUT]', field, 'value:', value);
         if (field === 'start') {
             setSText(value);
             setSCoord(null);
@@ -65,162 +48,129 @@ export default function InputPanel({ onRouteSubmit, language }) {
             setDText(value);
             setDCoord(null);
         }
+        setActiveField(field);
 
-        setActiveSuggestionField(field);
-
-        if (value.length >= 3 && window.map?.Search?.suggest) {
-            window.map.Search.suggest(value, {});
+        if (!window.map || !window.map.Search) {
+            console.warn('[SKIP] map.Search not available yet');
+            return;
+        }
+        if (value.length >= 3) {
+            window.map.Search.suggest(value);
         } else {
             setSuggestions([]);
         }
     };
 
-    const selectSuggestion = async (sug) => {
-        const field = activeSuggestionField;
-        const label = sug.label.replace(/<[^>]+>/g, '');
-
-        if (field === 'start') setSText(label);
-        else setDText(label);
-
-        if (sug.id === '__loc__') {
-            navigator.geolocation.getCurrentPosition((pos) => {
-                const coords = {
-                    lon: pos.coords.longitude,
-                    lat: pos.coords.latitude,
-                };
-                if (field === 'start') {
-                    setSCoord(coords);
-                    destinationInputRef.current?.focus();
-                } else {
-                    setDCoord(coords);
-                }
-            });
+    const handleSelect = (item) => {
+        console.log('[SELECT]', activeField, 'item:', item);
+        const cleanText = item.label.replace(/<[^>]+>/g, '');
+        if (activeField === 'start') {
+            setSText(cleanText);
         } else {
-            const coord = await geocodeByText(label);
-            if (coord) {
-                if (field === 'start') {
+            setDText(cleanText);
+        }
+
+        // Call search + get result position
+        console.log('[SEARCH] keyword:', item.keyword);
+        window.longdo.Util.search(item.keyword, (res) => {
+            console.log('[SEARCH RESULT]', res);
+            if (res?.length > 0) {
+                const coord = { lat: res[0].lat, lon: res[0].lon };
+                if (activeField === 'start') {
                     setSCoord(coord);
-                    destinationInputRef.current?.focus();
+                    destinationRef.current?.focus();
                 } else {
                     setDCoord(coord);
                 }
-            } else {
-                alert('No result found for this location');
+                window.map.location(res[0]); // move map to marker
             }
-        }
+        });
 
         setSuggestions([]);
     };
 
     const handleSubmit = (e) => {
+        console.log('[SUBMIT]', { sText, sCoord, dText, dCoord });
         e.preventDefault();
         if (!sCoord || !dCoord) {
-            alert('Please select both start and destination locations.');
+            alert('Please select both start and destination');
             return;
         }
-
         onRouteSubmit({
             startName: sText,
             startCoord: sCoord,
             destinationName: dText,
-            destinationCoord: dCoord,
+            destinationCoord: dCoord
         });
     };
 
     const handleSwap = () => {
+        console.log('[SWAP] before swap:', { sText, dText, sCoord, dCoord });
         setSText(dText);
         setDText(sText);
         setSCoord(dCoord);
         setDCoord(sCoord);
     };
 
-    const handleBlur = () => {
-        setTimeout(() => setSuggestions([]), 100);
-    };
-
     return (
-<<<<<<< HEAD
-        <div className="">
-=======
-        <div>
->>>>>>> b2f80f75c311235bae44552066b221d319f1b05e
-        <form onSubmit={handleSubmit} className="p-4 bg-white shadow-md flex flex-col md:flex-row gap-2 items-start md:items-end relative">
-
-            <div className="relative w-full md:w-1/2">
+        <form onSubmit={handleSubmit} className="p-4 bg-white shadow-md flex flex-col gap-2 md:flex-row md:items-end relative">
+            <div className="flex-1 relative">
                 <input
+                    ref={inputRef}
                     type="text"
-                    placeholder={placeholders.start}
+                    placeholder={language === 'en' ? 'Start' : 'ต้นทาง'}
                     value={sText}
                     onChange={(e) => handleInput(e.target.value, 'start')}
-                    onFocus={() => setActiveSuggestionField('start')}
-                    onBlur={handleBlur}
-                    className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                    />
-                {activeSuggestionField === 'start' && suggestions.length > 0 && (
-                    <div
-                        ref={suggestBoxRef}
-                        className="absolute z-50 mt-1 bg-white rounded shadow max-h-60 overflow-y-auto w-full"
-                    >
-                        {suggestions.map((sug) => (
-                            <div
-                                key={sug.id}
-                                onClick={() => selectSuggestion(sug)}
-                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                            >
-                                {sug.label.replace(/<[^>]+>/g, '')}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                    onFocus={() => setActiveField('start')}
+                    className="w-full p-2 border rounded"
+                />
             </div>
 
-            <div className="flex items-center justify-center mt-2 md:mt-0">
-                <button
-                    type="button"
-                    onClick={handleSwap}
-                    className="rounded-full p-2 bg-gray-200 hover:bg-gray-300 text-gray-700 transition duration-200"
-                    title={placeholders.swap}
-                >
-                    🔄
-                </button>
-            </div>
+            <button
+                type="button"
+                onClick={handleSwap}
+                className="px-3 py-2 rounded bg-blue-400 text-white font-bold hover:bg-blue-500"
+                title="Swap"
+            >
+                🔄
+            </button>
 
-            <div className="relative w-full md:w-1/2">
+            <div className="flex-1 relative">
                 <input
-                    ref={destinationInputRef}
+                    ref={destinationRef}
                     type="text"
-                    placeholder={placeholders.destination}
+                    placeholder={language === 'en' ? 'Destination' : 'ปลายทาง'}
                     value={dText}
                     onChange={(e) => handleInput(e.target.value, 'destination')}
-                    onFocus={() => setActiveSuggestionField('destination')}
-                    onBlur={handleBlur}
-                        className="block w-full rounded-md bg-white px-3.5 py-2 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600"
+                    onFocus={() => setActiveField('destination')}
+                    className="w-full p-2 border rounded"
                 />
-                {activeSuggestionField === 'destination' && suggestions.length > 0 && (
-                    <div
-                        ref={suggestBoxRef}
-                        className="absolute z-50 mt-1 bg-white rounded shadow max-h-60 overflow-y-auto w-full"
-                    >
-                        {suggestions.map((sug) => (
-                            <div
-                                key={sug.id}
-                                onClick={() => selectSuggestion(sug)}
-                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                            >
-                                {sug.label.replace(/<[^>]+>/g, '')}
-                            </div>
-                        ))}
-                    </div>
-                )}
             </div>
+
+            {suggestions.length > 0 && (
+                <div
+                    ref={suggestBoxRef}
+                    className="absolute z-50 mt-2 bg-white shadow max-h-60 overflow-y-auto w-full md:w-96 left-0"
+                >
+                    {suggestions.map((item) => (
+                        <div
+                            key={item.id}
+                            onClick={() => handleSelect(item)}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                        >
+                            {item.label.replace(/<[^>]+>/g, '')}
+                        </div>
+                    ))}
+                </div>
+            )}
+
             <button
                 type="submit"
                 disabled={!sCoord || !dCoord}
-                className={`px-3 h-12 rounded ${sCoord && dCoord ? 'bg-indigo-600 text-white' : 'bg-gray-300'}`}
+                className={`px-4 py-2 rounded ${sCoord && dCoord ? 'bg-indigo-600 text-white' : 'bg-gray-300'}`}
             >
-                {placeholders.route}
+                {language === 'en' ? 'Find Route' : 'ค้นหาเส้นทาง'}
             </button>
-            </form>
-        </div>
+        </form>
     );
 }
