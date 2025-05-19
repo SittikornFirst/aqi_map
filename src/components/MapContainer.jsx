@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { fetchAqiData } from '../services/aqiService';
 import { ChevronDownIcon } from '@heroicons/react/16/solid';
@@ -12,124 +13,133 @@ const AQI_OPTIONS = [
   { id: 'CO', name: 'CO' },
 ];
 
-function MapContainer({ language }) {
+function MapContainer({ language, onMapReady }) {
   const mapRef = useRef(null);
   const [aqiData, setAqiData] = useState(null);
-  const [selectedAQIType, setSelectedAQIType] = useState('AQI');
+  const [selectedAQIType, setSelectedAQIType] = useState("AQI");
 
-  const getColorByAQILevel = (value, type) => {
-    const val = Number(value);
-    if (isNaN(val) || val < 0) return '#CCCCCC';
+  // Initialize Longdo Map and notify parent when ready
+  useEffect(() => {
+    if (window.longdo && !mapRef.current) {
+      const map = new window.longdo.Map({
+        placeholder: document.getElementById("longdoMap"),
+        zoom: 10,
+      });
+      mapRef.current = map;
+      window.map = map;
+      onMapReady();
 
-    switch (type) {
-      case 'PM25':
-        if (val <= 15.0) return '#00BFFF';
-        if (val <= 25.0) return '#00E400';
-        if (val <= 37.5) return '#FFFF00';
-        if (val <= 75.0) return '#FF7E00';
-        return '#FF0000';
-      case 'PM10':
-        if (val <= 50) return '#00BFFF';
-        if (val <= 80) return '#00E400';
-        if (val <= 120) return '#FFFF00';
-        if (val <= 180) return '#FF7E00';
-        return '#FF0000';
-      case 'O3':
-        if (val <= 35) return '#00BFFF';
-        if (val <= 50) return '#00E400';
-        if (val <= 70) return '#FFFF00';
-        if (val <= 120) return '#FF7E00';
-        return '#FF0000';
-      case 'CO':
-        if (val <= 4.4) return '#00BFFF';
-        if (val <= 6.4) return '#00E400';
-        if (val <= 9.0) return '#FFFF00';
-        if (val <= 15.0) return '#FF7E00';
-        return '#FF0000';
-      case 'NO2':
-        if (val <= 60) return '#00BFFF';
-        if (val <= 106) return '#00E400';
-        if (val <= 170) return '#FFFF00';
-        if (val <= 340) return '#FF7E00';
-        return '#FF0000';
-      case 'SO2':
-        if (val <= 100) return '#00BFFF';
-        if (val <= 200) return '#00E400';
-        if (val <= 300) return '#FFFF00';
-        if (val <= 400) return '#FF7E00';
-        return '#FF0000';
-      case 'AQI':
-      default:
-        if (val <= 25) return '#00BFFF';
-        if (val <= 50) return '#00E400';
-        if (val <= 100) return '#FFFF00';
-        if (val <= 200) return '#FF7E00';
-        return '#FF0000';
+      // Hide default UI
+      map.Overlays.clear();
+      map.Ui.DPad.visible(false);
+      map.Ui.Geolocation.visible(false);
+      map.Ui.Toolbar.visible(false);
+      map.Ui.LayerSelector.visible(false);
+      map.Ui.Fullscreen.visible(false);
+      map.Ui.Crosshair.visible(false);
+
+      // Fetch AQI data
+      fetchAqiData()
+        .then((data) => setAqiData(data))
+        .catch(console.error);
     }
-  };
+  }, [language, onMapReady]);
 
-  const createMarker = useCallback((map, lat, lng, aqiValue, station) => {
-    if (!map || !window.longdo) return;
+  const getColorByAQILevel = useCallback(
+    (value, type) => {
+      const val = Number(value);
+      if (isNaN(val) || val < 0) return '#CCCCCC';
 
-    const markerElement = document.createElement('div');
-    markerElement.innerHTML = `
+      switch (type) {
+        case 'PM25':
+          if (val <= 15.0) return '#00BFFF';
+          if (val <= 25.0) return '#00E400';
+          if (val <= 37.5) return '#FFFF00';
+          if (val <= 75.0) return '#FF7E00';
+          return '#FF0000';
+        case 'PM10':
+          if (val <= 50) return '#00BFFF';
+          if (val <= 80) return '#00E400';
+          if (val <= 120) return '#FFFF00';
+          if (val <= 180) return '#FF7E00';
+          return '#FF0000';
+        case 'O3':
+          if (val <= 35) return '#00BFFF';
+          if (val <= 50) return '#00E400';
+          if (val <= 70) return '#FFFF00';
+          if (val <= 120) return '#FF7E00';
+          return '#FF0000';
+        case 'CO':
+          if (val <= 4.4) return '#00BFFF';
+          if (val <= 6.4) return '#00E400';
+          if (val <= 9.0) return '#FFFF00';
+          if (val <= 15.0) return '#FF7E00';
+          return '#FF0000';
+        case 'NO2':
+          if (val <= 60) return '#00BFFF';
+          if (val <= 106) return '#00E400';
+          if (val <= 170) return '#FFFF00';
+          if (val <= 340) return '#FF7E00';
+          return '#FF0000';
+        case 'SO2':
+          if (val <= 100) return '#00BFFF';
+          if (val <= 200) return '#00E400';
+          if (val <= 300) return '#FFFF00';
+          if (val <= 400) return '#FF7E00';
+          return '#FF0000';
+        case 'AQI':
+        default:
+          if (val <= 25) return '#00BFFF';
+          if (val <= 50) return '#00E400';
+          if (val <= 100) return '#FFFF00';
+          if (val <= 200) return '#FF7E00';
+          return '#FF0000';
+      }
+    },
+    [selectedAQIType]
+  );
+
+  const createMarker = useCallback(
+    (map, lat, lng, aqiValue, station) => {
+      if (!map || !window.longdo) return;
+
+      const markerElement = document.createElement('div');
+      markerElement.innerHTML = `
       <div style="width:40px;height:40px;border-radius:50%;background-color:${getColorByAQILevel(aqiValue, selectedAQIType)};display:flex;justify-content:center;align-items:center;font-weight:bold;font-size:14px;">
         ${aqiValue}
       </div>
     `;
 
-    const marker = new window.longdo.Marker({ lon: lng, lat }, {
-      title: language === 'th' ? station.nameTH : station.nameEN,
-      icon: { html: markerElement.innerHTML },
-      popup: {
+      const marker = new window.longdo.Marker({ lon: lng, lat }, {
         title: language === 'th' ? station.nameTH : station.nameEN,
-        detail: `
+        icon: { html: markerElement.innerHTML },
+        popup: {
+          title: language === 'th' ? station.nameTH : station.nameEN,
+          detail: `
           <br>${language === 'th' ? 'สถานี' : 'Station'}: ${language === 'th' ? station.areaTH : station.areaEN}
           <br>${selectedAQIType}: ${aqiValue} µg/m³
           <br>${language === 'th' ? 'อัพเดทล่าสุด' : 'Last Update'}: ${station.AQILast?.date || 'N/A'} ${station.AQILast?.time || 'N/A'}
         `,
-      },
-    });
+        },
+      });
 
-    if (!isNaN(aqiValue) && aqiValue >= 0) {
-      map.Overlays.add(marker);
-    }
-  }, [language, selectedAQIType]);
-
-  useEffect(() => {
-    if (window.longdo) {
-      mapRef.current = new window.longdo.Map({ placeholder: document.getElementById('longdoMap'), zoom: 10 });
-    }
-
-    fetchAqiData()
-      .then(setAqiData)
-      .catch(console.error);
-  }, []);
+      if (!isNaN(aqiValue) && aqiValue >= 0) {
+        map.Overlays.add(marker);
+      }
+    }, [language, selectedAQIType]);
 
   useEffect(() => {
     if (mapRef.current && aqiData) {
       mapRef.current.Overlays.clear();
-      mapRef.current.Ui.DPad.visible(false);
-      // mapRef.current.Ui.Zoombar.visible(false);
-      mapRef.current.Ui.Geolocation.visible(false);
-      mapRef.current.Ui.Toolbar.visible(false);
-      mapRef.current.Ui.LayerSelector.visible(false);
-      mapRef.current.Ui.Fullscreen.visible(false);
-      mapRef.current.Ui.Crosshair.visible(false);
-      
       aqiData.stations.forEach((station) => {
         const lat = parseFloat(station.lat);
         const lng = parseFloat(station.long);
-        const selectedParam = selectedAQIType;
+        const aqiValue =
+          selectedAQIType === "AQI"
+            ? station.AQILast?.AQI?.aqi
+            : station.AQILast?.[selectedAQIType]?.value;
 
-        let aqiValue;
-        if (selectedParam === 'AQI') {
-          aqiValue = station.AQILast?.AQI?.aqi;
-        } else {
-          aqiValue = station.AQILast?.[selectedParam]?.value;
-        }
-
-        if (!isNaN(Number(aqiValue)) && Number(aqiValue) >= 0) {
+        if (!isNaN(Number(aqiValue))) {
           createMarker(mapRef.current, lat, lng, aqiValue, station);
         }
       });
